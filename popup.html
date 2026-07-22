@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Tabs</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <div class="header-top">
+      <h1>▶ YouTube Tabs</h1>
+      <span id="tab-count" class="badge">0</span>
+    </div>
+    <div class="controls">
+      <button id="btn-refresh" class="btn-icon" title="Atnaujinti">↻</button>
+      <button id="btn-close-all" class="btn-icon btn-danger" title="Uždaryti visus YouTube tabus">✕</button>
+      <button id="btn-sort" class="btn-icon" title="Rikiuoti">↕</button>
+    </div>
+  </header>
+
+  <div id="sort-options" class="sort-options hidden">
+    <button data-sort="recent" class="active">Naujausi viršuje</button>
+    <button data-sort="progress">Progresas</button>
+    <button data-sort="title">Pavadinimas</button>
+    <button data-sort="oldest">Seniausi viršuje</button>
+  </div>
+
+  <div id="tabs-list" class="tabs-list"></div>
+
+  <div id="empty-state" class="empty-state hidden">
+    <div class="empty-icon">📺</div>
+    <p>Nėra atidarytų YouTube tabų</p>
+    <p class="empty-hint">Atsidarykite bet kurį YouTube vaizdo įrašą ir jis atsiras čia</p>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

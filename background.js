@@ -54,19 +54,48 @@ async function handleMessage(msg, sender) {
     const data = await chrome.storage.local.get('tabs');
     const tabs = data.tabs || {};
 
-    const tabIds = Object.keys(tabs).map(Number);
     const aliveTabs = await chrome.tabs.query({ url: ['https://www.youtube.com/*', 'https://youtube.com/*'] });
     const aliveIds = new Set(aliveTabs.map(t => t.id));
 
-    let changed = false;
+    const tabIds = Object.keys(tabs).map(Number);
     for (const id of tabIds) {
       if (!aliveIds.has(id)) {
         delete tabs[id];
-        changed = true;
       }
     }
-    if (changed) await chrome.storage.local.set({ tabs });
 
+    for (const tab of aliveTabs) {
+      if (!tabs[tab.id]) {
+        await addTab(tab);
+      } else {
+        try {
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: () => {
+              const video = document.querySelector('video');
+              if (!video) return null;
+              const duration = video.duration || 0;
+              const currentTime = video.currentTime || 0;
+              return {
+                duration,
+                currentTime,
+                progress: duration > 0 ? Math.round((currentTime / duration) * 100) : 0,
+                isPlaying: !video.paused
+              };
+            }
+          });
+          if (results && results[0] && results[0].result) {
+            tabs[tab.id] = {
+              ...tabs[tab.id],
+              ...results[0].result,
+              lastUpdated: Date.now()
+            };
+          }
+        } catch (e) {}
+      }
+    }
+
+    await chrome.storage.local.set({ tabs });
     return { tabs };
   }
 

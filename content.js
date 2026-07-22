@@ -1,6 +1,7 @@
 (function () {
   let lastData = null;
   let sendTimeout = null;
+  let videoListenersAttached = false;
 
   function getData() {
     try {
@@ -83,24 +84,45 @@
     }).catch(() => {});
   }
 
-  function scheduleSend() {
-    if (sendTimeout) clearTimeout(sendTimeout);
-    sendTimeout = setTimeout(sendData, 1000);
+  function attachVideoListeners() {
+    if (videoListenersAttached) return;
+    const video = document.querySelector('video');
+    if (!video) return;
+    videoListenersAttached = true;
+
+    video.addEventListener('timeupdate', () => {
+      if (sendTimeout) clearTimeout(sendTimeout);
+      sendTimeout = setTimeout(sendData, 1000);
+    });
+    video.addEventListener('play', sendData);
+    video.addEventListener('pause', sendData);
+    video.addEventListener('ended', sendData);
   }
 
-  document.addEventListener('timeupdate', scheduleSend);
-  document.addEventListener('play', scheduleSend);
-  document.addEventListener('pause', scheduleSend);
-
   const observer = new MutationObserver(() => {
-    if (document.querySelector('video')) {
+    const video = document.querySelector('video');
+    if (video) {
+      attachVideoListeners();
       setTimeout(sendData, 500);
     }
   });
   observer.observe(document.body, { childList: true, subtree: true });
 
-  setInterval(sendData, 5000);
-  window.addEventListener('yt-navigate-finish', () => setTimeout(sendData, 1000));
+  attachVideoListeners();
+  setInterval(sendData, 3000);
+
+  setInterval(() => {
+    const video = document.querySelector('video');
+    if (video && !video.paused) sendData();
+  }, 2000);
+
+  window.addEventListener('yt-navigate-finish', () => {
+    videoListenersAttached = false;
+    setTimeout(() => {
+      attachVideoListeners();
+      sendData();
+    }, 1000);
+  });
 
   setTimeout(sendData, 2000);
 })();

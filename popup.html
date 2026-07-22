@@ -13,6 +13,7 @@
       <span id="tab-count" class="badge">0</span>
     </div>
     <div class="controls">
+      <button id="btn-history" class="btn-icon" title="Istorija">🕘</button>
       <button id="btn-refresh" class="btn-icon" title="Atnaujinti">↻</button>
       <button id="btn-close-all" class="btn-icon btn-danger" title="Uždaryti visus YouTube tabus">✕</button>
       <button id="btn-sort" class="btn-icon" title="Rikiuoti">↕</button>
@@ -27,6 +28,14 @@
   </div>
 
   <div id="tabs-list" class="tabs-list"></div>
+
+  <div id="history-list" class="tabs-list hidden"></div>
+
+  <div id="history-empty" class="empty-state hidden">
+    <div class="empty-icon">🕘</div>
+    <p>Istorijos dar nėra</p>
+    <p class="empty-hint">Uždaryti YouTube vaizdo įrašai atsiras čia (iki 10 paskutinių)</p>
+  </div>
 
   <div id="empty-state" class="empty-state hidden">
     <div class="empty-icon">📺</div>

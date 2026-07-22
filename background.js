@@ -17,6 +17,14 @@ async function handleNewTab(tab) {
 async function handleTabUpdate(tabId, changeInfo, tab) {
   if (changeInfo.url && YOUTUBE_PATTERN.test(changeInfo.url)) {
     await addTab(tab);
+  } else if (changeInfo.url) {
+    const data = await chrome.storage.local.get(['tabs', 'history']);
+    const tabs = data.tabs || {};
+    if (tabs[tabId] && tabs[tabId].videoId) {
+      await saveToHistory(tabs[tabId], data.history || []);
+      delete tabs[tabId];
+      await chrome.storage.local.set({ tabs });
+    }
   }
   if (changeInfo.status === 'complete' && tab.url && YOUTUBE_PATTERN.test(tab.url)) {
     await addTab(tab);
@@ -24,9 +32,10 @@ async function handleTabUpdate(tabId, changeInfo, tab) {
 }
 
 async function handleTabRemoved(tabId) {
-  const data = await chrome.storage.local.get('tabs');
+  const data = await chrome.storage.local.get(['tabs', 'history']);
   const tabs = data.tabs || {};
   if (tabs[tabId]) {
+    await saveToHistory(tabs[tabId], data.history || []);
     delete tabs[tabId];
     await chrome.storage.local.set({ tabs });
   }
@@ -130,16 +139,34 @@ async function handleMessage(msg, sender) {
 
   if (msg.type === 'SAVE_TO_HISTORY') {
     const data = await chrome.storage.local.get('history');
-    const history = data.history || [];
-    const exists = history.findIndex(h => h.videoId === msg.payload.videoId);
-    if (exists >= 0) {
-      history[exists] = { ...history[exists], ...msg.payload, lastSeen: Date.now() };
-    } else {
-      history.unshift({ ...msg.payload, lastSeen: Date.now() });
-    }
-    if (history.length > 200) history.length = 200;
-    await chrome.storage.local.set({ history });
+    await saveToHistory(msg.payload, data.history || []);
   }
+
+  if (msg.type === 'CLEAR_HISTORY') {
+    await chrome.storage.local.set({ history: [] });
+    return { history: [] };
+  }
+
+  if (msg.type === 'REMOVE_FROM_HISTORY') {
+    const data = await chrome.storage.local.get('history');
+    const history = (data.history || []).filter(h => h.videoId !== msg.videoId);
+    await chrome.storage.local.set({ history });
+    return { history };
+  }
+}
+
+async function saveToHistory(payload, history) {
+  if (!payload || !payload.videoId) return;
+  const exists = history.findIndex(h => h.videoId === payload.videoId);
+  if (exists >= 0) {
+    const merged = { ...history[exists], ...payload, lastSeen: Date.now() };
+    history.splice(exists, 1);
+    history.unshift(merged);
+  } else {
+    history.unshift({ ...payload, lastSeen: Date.now() });
+  }
+  if (history.length > 10) history.length = 10;
+  await chrome.storage.local.set({ history });
 }
 
 async function addTab(tab, retroactive = false) {
@@ -160,6 +187,22 @@ async function addTab(tab, retroactive = false) {
       lastUpdated: Date.now(),
       progress: 0
     };
+  } else if (tabs[tab.id].videoId && tabs[tab.id].videoId !== videoId) {
+    await saveToHistory(tabs[tab.id], (await chrome.storage.local.get('history')).history || []);
+    const fresh = await chrome.storage.local.get('tabs');
+    const freshTabs = fresh.tabs || {};
+    freshTabs[tab.id] = {
+      tabId: tab.id,
+      videoId,
+      title: tab.title || 'YouTube',
+      url: tab.url,
+      favicon: tab.favIconUrl || '',
+      openedAt: Date.now(),
+      lastUpdated: Date.now(),
+      progress: 0
+    };
+    await chrome.storage.local.set({ tabs: freshTabs });
+    return;
   } else {
     tabs[tab.id].title = tab.title || tabs[tab.id].title;
     tabs[tab.id].url = tab.url || tabs[tab.id].url;

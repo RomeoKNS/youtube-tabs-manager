@@ -59,8 +59,10 @@ popup.js (renders UI)
 | `SWITCH_TAB` | popup → background | Activates a specific tab |
 | `CLOSE_TAB` | popup → background | Closes a specific tab |
 | `CLOSE_ALL_YOUTUBE` | popup → background | Closes all tracked YouTube tabs |
-| `GET_HISTORY` | popup → background | Returns video history (implemented, unused in UI) |
-| `SAVE_TO_HISTORY` | popup → background | Saves video to history (implemented, unused in UI) |
+| `GET_HISTORY` | popup → background | Returns video history (up to 10 entries) |
+| `SAVE_TO_HISTORY` | popup → background | Manually saves video to history (auto-saved on tab close/nav away/video change) |
+| `REMOVE_FROM_HISTORY` | popup → background | Removes a single video from history by `videoId` |
+| `CLEAR_HISTORY` | popup → background | Clears entire history |
 
 ---
 
@@ -153,9 +155,23 @@ popup.js (renders UI)
 
 ### Tab Lifecycle
 - `addTab(tab, retroactive=false)` — creates or updates tab in storage
-- Always merges new data with existing (never overwrites `openedAt`)
+- When `videoId` changes on an existing tab, the old video is saved to history and a fresh entry is created
 - Script execution via `chrome.scripting.executeScript` fetches live data
 - Dead tabs cleaned up on `GET_ALL_TABS` request
+
+### History
+
+The extension automatically saves videos to history (up to 10 entries) when:
+
+- A YouTube tab is closed (`handleTabRemoved`)
+- A tab navigates away from YouTube to a non-YouTube URL (`handleTabUpdate`)
+- A tab navigates from one YouTube video to another with a different `videoId` (`addTab`)
+
+History entries store the same fields as tracked tabs plus `lastSeen` (timestamp of when it was saved). If a video already exists in history, it is updated and moved to the front.
+
+The popup provides a toggle (🕘 button) between the active tabs view and the history view. In the history view, each card can be clicked to reopen the video in a new tab, removed individually via the ✕ button, or all at once via the "Išvalyti" (Clear) button.
+
+`saveToHistory(payload, history)` is the central helper — it handles deduplication, updates `lastSeen`, and enforces the 10-entry limit.
 
 ---
 
@@ -183,7 +199,6 @@ popup.js (renders UI)
 ---
 
 ## Future Ideas
-- Video history view (data structures already in background.js)
 - Keyboard shortcuts
 - Drag-to-reorder tabs
 - Group tabs by channel

@@ -1,4 +1,6 @@
 let allTabs = [];
+let history = [];
+let currentView = 'tabs';
 let currentSort = 'recent';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -6,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-refresh').addEventListener('click', loadTabs);
   document.getElementById('btn-close-all').addEventListener('click', closeAllTabs);
   document.getElementById('btn-sort').addEventListener('click', toggleSortOptions);
+  document.getElementById('btn-history').addEventListener('click', toggleHistory);
 
   document.querySelectorAll('[data-sort]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -130,6 +133,133 @@ async function closeAllTabs() {
   }
   allTabs = [];
   renderTabs();
+}
+
+function toggleHistory() {
+  currentView = currentView === 'history' ? 'tabs' : 'history';
+  const btn = document.getElementById('btn-history');
+  const tabsList = document.getElementById('tabs-list');
+  const historyList = document.getElementById('history-list');
+  const emptyState = document.getElementById('empty-state');
+  const historyEmpty = document.getElementById('history-empty');
+  const sortBtn = document.getElementById('btn-sort');
+
+  if (currentView === 'history') {
+    btn.classList.add('active');
+    tabsList.classList.add('hidden');
+    historyList.classList.remove('hidden');
+    emptyState.classList.add('hidden');
+    sortBtn.style.display = 'none';
+    loadHistory();
+  } else {
+    btn.classList.remove('active');
+    historyList.classList.add('hidden');
+    historyEmpty.classList.add('hidden');
+    tabsList.classList.remove('hidden');
+    sortBtn.style.display = '';
+    loadTabs();
+  }
+}
+
+async function loadHistory() {
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'GET_HISTORY' });
+    history = response.history || [];
+    renderHistory();
+  } catch (e) {
+    if (e.message?.includes('Extension context invalidated')) {
+      location.reload();
+    } else {
+      console.error('Failed to load history:', e);
+    }
+  }
+}
+
+function renderHistory() {
+  const container = document.getElementById('history-list');
+  const emptyState = document.getElementById('history-empty');
+
+  if (history.length === 0) {
+    container.innerHTML = '';
+    emptyState.classList.remove('hidden');
+    return;
+  }
+
+  emptyState.classList.add('hidden');
+  container.innerHTML = `
+    <div class="history-header">
+      <span class="history-title">Istorija (${history.length}/10)</span>
+      <button id="btn-clear-history" class="btn-icon btn-danger" title="Išvalyti visą istoriją">Išvalyti</button>
+    </div>
+  ` + history.map(item => `
+    <div class="tab-card history-card" data-video-id="${item.videoId}">
+      <div class="thumbnail-wrap">
+        <img src="${item.thumbnail || ''}" alt="">
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" style="width:${item.progress || 0}%"></div>
+        </div>
+        ${item.progress ? `<span class="progress-text">${item.progress}%</span>` : ''}
+      </div>
+      <div class="tab-info">
+        <div class="tab-title" title="${escapeHtml(item.title || '')}">${escapeHtml(item.title || 'Nepažįstamas')}</div>
+        <div class="tab-meta">
+          <span class="tab-channel">${escapeHtml(item.channel || '')}</span>
+          <div class="tab-stats">
+            ${item.uploadDate ? `<span class="tab-stat">${formatUploadDate(item.uploadDate)}</span>` : ''}
+            ${item.duration ? `<span class="tab-stat">${formatDuration(item.duration)}</span>` : ''}
+            ${item.views ? `<span class="tab-stat">${item.views}</span>` : ''}
+          </div>
+          ${item.lastSeen ? `<span class="tab-since">Uždaryta ${formatTime(item.lastSeen)}</span>` : ''}
+        </div>
+      </div>
+      <button class="tab-close" title="Pašalinti iš istorijos">✕</button>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.tab-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.tab-close')) return;
+      const videoId = card.dataset.videoId;
+      try {
+        chrome.tabs.create({ url: `https://www.youtube.com/watch?v=${videoId}` });
+      } catch (err) {
+        if (err.message?.includes('Extension context invalidated')) location.reload();
+      }
+    });
+
+    const closeBtn = card.querySelector('.tab-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const videoId = card.dataset.videoId;
+        try {
+          const response = await chrome.runtime.sendMessage({ type: 'REMOVE_FROM_HISTORY', videoId });
+          history = response.history || [];
+          renderHistory();
+        } catch (err) {
+          if (err.message?.includes('Extension context invalidated')) location.reload();
+        }
+      });
+    }
+
+    const img = card.querySelector('.thumbnail-wrap img');
+    if (img) {
+      img.addEventListener('error', () => { img.style.display = 'none'; });
+    }
+  });
+
+  const clearBtn = document.getElementById('btn-clear-history');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', async () => {
+      try {
+        const response = await chrome.runtime.sendMessage({ type: 'CLEAR_HISTORY' });
+        history = response.history || [];
+        renderHistory();
+      } catch (err) {
+        if (err.message?.includes('Extension context invalidated')) location.reload();
+      }
+    });
+  }
 }
 
 function escapeHtml(str) {

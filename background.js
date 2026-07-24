@@ -57,10 +57,19 @@ async function handleTabRemoved(tabId) {
 async function handleMessage(msg, sender) {
   if (msg.type === 'VIDEO_DATA' && sender.tab) {
     const tabId = sender.tab.id;
-    const data = await chrome.storage.local.get('tabs');
+    const data = await chrome.storage.local.get(['tabs', 'history']);
     const tabs = data.tabs || {};
 
     const existing = tabs[tabId] || {};
+    const newVideoId = msg.payload.videoId;
+
+    if (existing.videoId && newVideoId && existing.videoId !== newVideoId) {
+      await saveToHistory(existing, data.history || []);
+      existing.openedAt = Date.now();
+      existing.progress = 0;
+      existing.currentTime = 0;
+    }
+
     const merged = { ...existing };
     for (const [k, v] of Object.entries(msg.payload)) {
       if (v === '' || v === null || v === undefined) continue;

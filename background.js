@@ -65,6 +65,8 @@ async function handleMessage(msg, sender) {
     for (const [k, v] of Object.entries(msg.payload)) {
       if (v === '' || v === null || v === undefined) continue;
       if (k === 'progress' && v === 0 && existing.currentTime > 0) continue;
+      if (k === 'duration' && (!v || v <= 0) && existing.duration > 0) continue;
+      if (k === 'currentTime' && (!v || v <= 0) && existing.currentTime > 0) continue;
       merged[k] = v;
     }
     tabs[tabId] = {
@@ -120,6 +122,7 @@ async function handleMessage(msg, sender) {
           const results = await chrome.scripting.executeScript({
             target: { tabId: tab.id },
             func: () => {
+              if (document.visibilityState === 'hidden') return null;
               const video = document.querySelector('video');
               if (!video) return null;
               const duration = video.duration || 0;
@@ -128,7 +131,7 @@ async function handleMessage(msg, sender) {
                 duration,
                 currentTime,
                 progress: duration > 0 ? Math.round((currentTime / duration) * 100) : 0,
-                isPlaying: !video.paused && document.visibilityState === 'visible'
+                isPlaying: !video.paused
               };
             }
           });

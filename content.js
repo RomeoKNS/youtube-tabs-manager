@@ -71,6 +71,7 @@
   }
 
   function sendData() {
+    if (document.visibilityState === 'hidden') return;
     const data = getData();
     if (!data) return;
 
@@ -122,6 +123,13 @@
       attachVideoListeners();
       sendData();
     }, 1000);
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      lastData = null;
+      setTimeout(sendData, 500);
+    }
   });
 
   setTimeout(sendData, 2000);

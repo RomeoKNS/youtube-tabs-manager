@@ -70,6 +70,8 @@ async function handleMessage(msg, sender) {
       existing.currentTime = 0;
     }
 
+    if (!existing.openedAt) existing.openedAt = Date.now();
+
     const merged = { ...existing };
     for (const [k, v] of Object.entries(msg.payload)) {
       if (v === '' || v === null || v === undefined) continue;

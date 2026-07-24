@@ -59,6 +59,8 @@ popup.js (renders UI)
 | `SWITCH_TAB` | popup → background | Activates a specific tab |
 | `CLOSE_TAB` | popup → background | Closes a specific tab |
 | `CLOSE_ALL_YOUTUBE` | popup → background | Closes all tracked YouTube tabs |
+| `PIN_TAB` | popup → background | Pins a tab (floats to top of popup list) |
+| `UNPIN_TAB` | popup → background | Removes pin from a tab |
 | `GET_HISTORY` | popup → background | Returns video history (up to 10 entries) |
 | `SAVE_TO_HISTORY` | popup → background | Manually saves video to history (auto-saved on tab close/nav away/video change) |
 | `REMOVE_FROM_HISTORY` | popup → background | Removes a single video from history by `videoId` |
@@ -87,6 +89,29 @@ popup.js (renders UI)
   favicon: String          // Tab favicon URL
 }
 ```
+
+---
+
+## Pinning
+
+Separately from `tabs`, `chrome.storage.local` holds a `pinned` object keyed by
+`tabId` (e.g. `{ "123": true }`). Pins are tab-scoped, not video-scoped — closing
+the tab removes the pin. The popup renders pinned cards above unpinned ones,
+independent of the active sort; within each group the chosen sort applies.
+
+`GET_ALL_TABS` returns `{ tabs, pinned }` and also garbage-collects stale pins
+for dead tab IDs. `handleTabRemoved` removes the pin alongside the tab entry.
+
+---
+
+## Badge
+
+The background script maintains a badge on the extension icon showing the count
+of open YouTube tabs. `updateBadge()` queries live YouTube tabs and calls
+`chrome.action.setBadgeText` (red background `#ff0000`). It runs on install,
+startup, tab created, tab updated (on `complete`), tab removed, and on every
+`GET_ALL_TABS` request. The badge clears (empty text) when no YouTube tabs are
+open.
 
 ---
 
@@ -122,6 +147,7 @@ popup.js (renders UI)
 - **Stats row** — `uploadDate | duration | views` separated by `|` (via CSS `::before`)
 - **"Žiūrima nuo..."** — relative time since tab opened (hidden for pre-extension tabs)
 - **Playing indicator** — red left border when video is playing
+- **Pin button** — 📌 (pinned) / 📍 (unpinned), top-left of thumbnail; appears on hover unless pinned
 - **Close button** — appears on hover
 
 ### Sorting options
@@ -202,4 +228,3 @@ The popup provides a toggle (🕘 button) between the active tabs view and the h
 - Keyboard shortcuts
 - Drag-to-reorder tabs
 - Group tabs by channel
-- Pin important videos

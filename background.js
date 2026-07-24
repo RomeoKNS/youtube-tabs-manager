@@ -1,12 +1,22 @@
 const YOUTUBE_PATTERN = /^https?:\/\/(www\.)?youtube\.com\/watch/;
 const CHECK_INTERVAL = 3000;
 
-chrome.runtime.onInstalled.addListener(scanExistingTabs);
-chrome.runtime.onStartup.addListener(scanExistingTabs);
-chrome.tabs.onCreated.addListener(handleNewTab);
-chrome.tabs.onUpdated.addListener(handleTabUpdate);
-chrome.tabs.onRemoved.addListener(handleTabRemoved);
+chrome.runtime.onInstalled.addListener(() => { scanExistingTabs(); updateBadge(); });
+chrome.runtime.onStartup.addListener(() => { scanExistingTabs(); updateBadge(); });
+chrome.tabs.onCreated.addListener((tab) => { handleNewTab(tab); updateBadge(); });
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => { handleTabUpdate(tabId, changeInfo, tab); });
+chrome.tabs.onRemoved.addListener((tabId) => { handleTabRemoved(tabId); updateBadge(); });
 chrome.runtime.onMessage.addListener(handleMessage);
+
+chrome.action.setBadgeBackgroundColor({ color: '#ff0000' });
+
+async function updateBadge() {
+  try {
+    const alive = await chrome.tabs.query({ url: ['https://www.youtube.com/*', 'https://youtube.com/*'] });
+    const count = alive.length;
+    await chrome.action.setBadgeText({ text: count > 0 ? String(count) : '' });
+  } catch (e) {}
+}
 
 async function handleNewTab(tab) {
   if (tab.url && YOUTUBE_PATTERN.test(tab.url)) {
@@ -29,16 +39,19 @@ async function handleTabUpdate(tabId, changeInfo, tab) {
   if (changeInfo.status === 'complete' && tab.url && YOUTUBE_PATTERN.test(tab.url)) {
     await addTab(tab);
   }
+  updateBadge();
 }
 
 async function handleTabRemoved(tabId) {
-  const data = await chrome.storage.local.get(['tabs', 'history']);
+  const data = await chrome.storage.local.get(['tabs', 'history', 'pinned']);
   const tabs = data.tabs || {};
+  const pinned = data.pinned || {};
   if (tabs[tabId]) {
     await saveToHistory(tabs[tabId], data.history || []);
     delete tabs[tabId];
-    await chrome.storage.local.set({ tabs });
   }
+  if (pinned[tabId]) delete pinned[tabId];
+  await chrome.storage.local.set({ tabs, pinned });
 }
 
 async function handleMessage(msg, sender) {
@@ -60,8 +73,9 @@ async function handleMessage(msg, sender) {
   }
 
   if (msg.type === 'GET_ALL_TABS') {
-    const data = await chrome.storage.local.get('tabs');
+    const data = await chrome.storage.local.get(['tabs', 'pinned']);
     const tabs = data.tabs || {};
+    const pinned = data.pinned || {};
 
     const aliveTabs = await chrome.tabs.query({ url: ['https://www.youtube.com/*', 'https://youtube.com/*'] });
     const aliveIds = new Set(aliveTabs.map(t => t.id));
@@ -70,6 +84,15 @@ async function handleMessage(msg, sender) {
     for (const id of tabIds) {
       if (!aliveIds.has(id)) {
         delete tabs[id];
+      }
+    }
+
+    // Drop pins for tabs that no longer exist
+    let pinsDirty = false;
+    for (const id of Object.keys(pinned)) {
+      if (!aliveIds.has(Number(id))) {
+        delete pinned[id];
+        pinsDirty = true;
       }
     }
 
@@ -105,7 +128,25 @@ async function handleMessage(msg, sender) {
     }
 
     await chrome.storage.local.set({ tabs });
-    return { tabs };
+    if (pinsDirty) await chrome.storage.local.set({ pinned });
+    updateBadge();
+    return { tabs, pinned };
+  }
+
+  if (msg.type === 'PIN_TAB') {
+    const data = await chrome.storage.local.get('pinned');
+    const pinned = data.pinned || {};
+    pinned[msg.tabId] = true;
+    await chrome.storage.local.set({ pinned });
+    return { pinned };
+  }
+
+  if (msg.type === 'UNPIN_TAB') {
+    const data = await chrome.storage.local.get('pinned');
+    const pinned = data.pinned || {};
+    delete pinned[msg.tabId];
+    await chrome.storage.local.set({ pinned });
+    return { pinned };
   }
 
   if (msg.type === 'CLOSE_TAB') {

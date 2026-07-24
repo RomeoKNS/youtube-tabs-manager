@@ -1,5 +1,6 @@
 let allTabs = [];
 let history = [];
+let pinned = new Set();
 let currentView = 'tabs';
 let currentSort = 'recent';
 
@@ -25,6 +26,7 @@ async function loadTabs() {
   try {
     const response = await chrome.runtime.sendMessage({ type: 'GET_ALL_TABS' });
     allTabs = Object.values(response.tabs || {});
+    pinned = new Set(Object.keys(response.pinned || {}).map(Number));
     renderTabs();
   } catch (e) {
     if (e.message?.includes('Extension context invalidated')) {
@@ -51,14 +53,17 @@ function renderTabs() {
   emptyState.classList.add('hidden');
   const sorted = sortTabs([...allTabs]);
 
-  container.innerHTML = sorted.map(tab => `
-    <div class="tab-card${tab.isPlaying ? ' playing' : ''}" data-tab-id="${tab.tabId}">
+  container.innerHTML = sorted.map(tab => {
+    const isPinned = pinned.has(tab.tabId);
+    return `
+    <div class="tab-card${tab.isPlaying ? ' playing' : ''}${isPinned ? ' pinned' : ''}" data-tab-id="${tab.tabId}">
       <div class="thumbnail-wrap">
         <img src="${tab.thumbnail || ''}" alt="">
         <div class="progress-bar-wrap">
           <div class="progress-bar" style="width:${tab.progress || 0}%"></div>
         </div>
         ${tab.progress ? `<span class="progress-text">${tab.progress}%</span>` : ''}
+        <button class="tab-pin${isPinned ? ' pinned' : ''}" title="${isPinned ? 'Atsegti' : 'Prisegti'}" aria-label="${isPinned ? 'Atsegti' : 'Prisegti'}">${isPinned ? '📌' : '📍'}</button>
       </div>
       <div class="tab-info">
         <div class="tab-title" title="${escapeHtml(tab.title || '')}">${escapeHtml(tab.title || 'Nepažįstamas')}</div>
@@ -73,12 +78,12 @@ function renderTabs() {
         </div>
       </div>
       <button class="tab-close" title="Uždaryti">✕</button>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   container.querySelectorAll('.tab-card').forEach(card => {
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.tab-close')) return;
+      if (e.target.closest('.tab-close') || e.target.closest('.tab-pin')) return;
       const tabId = Number(card.dataset.tabId);
       try {
         chrome.runtime.sendMessage({ type: 'SWITCH_TAB', tabId });
@@ -93,6 +98,22 @@ function renderTabs() {
     }
   });
 
+  container.querySelectorAll('.tab-pin').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const tabId = Number(btn.closest('.tab-card').dataset.tabId);
+      const isPinned = pinned.has(tabId);
+      try {
+        await chrome.runtime.sendMessage({ type: isPinned ? 'UNPIN_TAB' : 'PIN_TAB', tabId });
+        if (isPinned) pinned.delete(tabId);
+        else pinned.add(tabId);
+        renderTabs();
+      } catch (err) {
+        if (err.message?.includes('Extension context invalidated')) location.reload();
+      }
+    });
+  });
+
   container.querySelectorAll('.tab-close').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -103,19 +124,22 @@ function renderTabs() {
         if (err.message?.includes('Extension context invalidated')) location.reload();
       }
       allTabs = allTabs.filter(t => t.tabId !== tabId);
+      pinned.delete(tabId);
       renderTabs();
     });
   });
 }
 
 function sortTabs(tabs) {
-  switch (currentSort) {
-    case 'recent': return tabs.sort((a, b) => (b.openedAt || 0) - (a.openedAt || 0));
-    case 'oldest': return tabs.sort((a, b) => (a.openedAt || 0) - (b.openedAt || 0));
-    case 'progress': return tabs.sort((a, b) => (b.progress || 0) - (a.progress || 0));
-    case 'title': return tabs.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-    default: return tabs;
-  }
+  const sortFn = {
+    recent: (a, b) => (b.openedAt || 0) - (a.openedAt || 0),
+    oldest: (a, b) => (a.openedAt || 0) - (b.openedAt || 0),
+    progress: (a, b) => (b.progress || 0) - (a.progress || 0),
+    title: (a, b) => (a.title || '').localeCompare(b.title || '')
+  }[currentSort] || (a => a);
+  const pinnedArr = tabs.filter(t => pinned.has(t.tabId)).sort(sortFn);
+  const rest = tabs.filter(t => !pinned.has(t.tabId)).sort(sortFn);
+  return [...pinnedArr, ...rest];
 }
 
 function toggleSortOptions() {

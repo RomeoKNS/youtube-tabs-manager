@@ -304,8 +304,40 @@ h1 {
   transition: all 0.15s;
 }
 
-.tab-card:hover .tab-close {
+.tab-pin {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 22px;
+  height: 22px;
+  background: rgba(0,0,0,0.6);
+  border: none;
+  color: #aaa;
+  font-size: 11px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.15s;
+  z-index: 2;
+}
+
+.tab-card:hover .tab-close,
+.tab-card:hover .tab-pin {
   opacity: 1;
+}
+
+.tab-pin:hover {
+  background: #ff0000;
+  color: #fff;
+}
+
+.tab-pin.pinned {
+  opacity: 1;
+  background: rgba(255,0,0,0.85);
+  color: #fff;
 }
 
 .tab-close:hover {

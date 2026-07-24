@@ -97,6 +97,7 @@ async function handleMessage(msg, sender) {
     }
 
     for (const tab of aliveTabs) {
+      if (tab.discarded) continue;
       if (!tabs[tab.id] || !tabs[tab.id].channel) {
         await addTab(tab);
         const fresh = await chrome.storage.local.get('tabs');
@@ -322,10 +323,17 @@ function extractVideoId(url) {
 }
 
 async function scanExistingTabs(retroactive = true) {
+  const data = await chrome.storage.local.get('tabs');
+  const storedTabs = data.tabs || {};
+  for (const id of Object.keys(storedTabs)) {
+    if (storedTabs[id]) storedTabs[id].isPlaying = false;
+  }
+  await chrome.storage.local.set({ tabs: storedTabs });
+
   const existingTabs = await chrome.tabs.query({
     url: ['https://www.youtube.com/*', 'https://youtube.com/*']
   });
   for (const tab of existingTabs) {
-    await addTab(tab, retroactive);
+    await addTab(tab, retroactive || tab.discarded);
   }
 }

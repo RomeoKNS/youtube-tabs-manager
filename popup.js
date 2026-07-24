@@ -3,6 +3,7 @@ let history = [];
 let pinned = new Set();
 let currentView = 'tabs';
 let currentSort = 'recent';
+let refreshTimer = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   loadTabs();
@@ -20,6 +21,12 @@ document.addEventListener('DOMContentLoaded', () => {
       renderTabs();
     });
   });
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local' || !changes.tabs || currentView !== 'tabs') return;
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(refreshFromStorage, 300);
+  });
 });
 
 async function loadTabs() {
@@ -35,6 +42,15 @@ async function loadTabs() {
       console.error('Failed to load tabs:', e);
     }
   }
+}
+
+async function refreshFromStorage() {
+  try {
+    const data = await chrome.storage.local.get(['tabs', 'pinned']);
+    allTabs = Object.values(data.tabs || {});
+    pinned = new Set(Object.keys(data.pinned || {}).map(Number));
+    renderTabs();
+  } catch (e) {}
 }
 
 function renderTabs() {

@@ -105,7 +105,11 @@ async function handleMessage(msg, sender) {
         if (fresh.tabs && fresh.tabs[tab.id]) {
           tabs[tab.id] = fresh.tabs[tab.id];
         }
+        if (tabs[tab.id] && !tabs[tab.id].channel) {
+          tabs[tab.id].discarded = true;
+        }
       } else {
+        let scraped = false;
         try {
           const results = await chrome.scripting.executeScript({
             target: { tabId: tab.id },
@@ -126,10 +130,13 @@ async function handleMessage(msg, sender) {
             tabs[tab.id] = {
               ...tabs[tab.id],
               ...results[0].result,
+              discarded: false,
               lastUpdated: Date.now()
             };
+            scraped = true;
           }
         } catch (e) {}
+        if (!scraped) tabs[tab.id].discarded = true;
       }
     }
 
@@ -326,15 +333,43 @@ function extractVideoId(url) {
 async function scanExistingTabs(retroactive = true) {
   const data = await chrome.storage.local.get('tabs');
   const storedTabs = data.tabs || {};
+
   for (const id of Object.keys(storedTabs)) {
     if (storedTabs[id]) storedTabs[id].isPlaying = false;
   }
-  await chrome.storage.local.set({ tabs: storedTabs });
 
   const existingTabs = await chrome.tabs.query({
     url: ['https://www.youtube.com/*', 'https://youtube.com/*']
   });
+  const aliveIds = new Set(existingTabs.map(t => t.id));
+
+  const videoIdMap = {};
+  for (const id of Object.keys(storedTabs)) {
+    const t = storedTabs[id];
+    if (t && t.videoId && !aliveIds.has(Number(id))) {
+      videoIdMap[t.videoId] = t;
+    }
+  }
+
+  for (const id of Object.keys(storedTabs)) {
+    if (!aliveIds.has(Number(id))) delete storedTabs[id];
+  }
+  await chrome.storage.local.set({ tabs: storedTabs });
+
   for (const tab of existingTabs) {
+    const videoId = extractVideoId(tab.url);
+    if (videoId && videoIdMap[videoId] && !storedTabs[tab.id]) {
+      storedTabs[tab.id] = {
+        ...videoIdMap[videoId],
+        tabId: tab.id,
+        url: tab.url,
+        favicon: tab.favIconUrl || videoIdMap[videoId].favicon || '',
+        isPlaying: false,
+        discarded: !!tab.discarded,
+        lastUpdated: Date.now()
+      };
+      await chrome.storage.local.set({ tabs: storedTabs });
+    }
     await addTab(tab, retroactive || tab.discarded);
   }
 }

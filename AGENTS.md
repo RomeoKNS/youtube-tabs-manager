@@ -145,7 +145,7 @@ open.
 - **Title** — max 2 lines with ellipsis
 - **Channel name**
 - **Stats row** — `uploadDate | duration | views` separated by `|` (via CSS `::before`)
-- **"Žiūrima nuo..."** — relative time since tab opened (hidden for pre-extension tabs)
+- **"Atidaryta prieš..."** — relative time since tab opened (hidden for pre-extension tabs)
 - **Playing indicator** — red left border when video is playing
 - **Pin button** — 📌 (pinned) / 📍 (unpinned), top-left of thumbnail; appears on hover unless pinned
 - **Close button** — appears on hover
@@ -177,7 +177,7 @@ open.
 ### Retroactive Tab Scanning
 - On install/startup, `scanExistingTabs()` finds existing YouTube tabs
 - These get `openedAt: null` (can't know actual open time)
-- Popup hides "Žiūrima nuo" when `openedAt` is null
+- Popup hides "Atidaryta prieš" when `openedAt` is null
 
 ### Tab Lifecycle
 - `addTab(tab, retroactive=false)` — creates or updates tab in storage

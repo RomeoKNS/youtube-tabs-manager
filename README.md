@@ -8,8 +8,10 @@ Chrome/Chromium plėtinys, kuris surenka visus atidarytus YouTube video tabus į
 - Video thumbnail su progreso juosta
 - Upload data, trukmė, peržiūrų skaičius
 - Rikiavimas: naujausi / seniausi / progresas / pavadinimas
-- "Žiūrima nuo..." laikas
+- "Atidaryta prieš..." laikas
 - Raudona indikacija kai video groja
+- Tabų prisegimas (pin) — prisegti tabai visada viršuje
+- Badge su atidarytų YouTube tabų skaičiumi ant extension ikonos
 - Greitas perėjimas / uždarymas
 - **Istorija** — iki 10 paskutinių uždarytų arba paliktų video:
   - Automatiškai išsaugoma kai tabas uždaromas

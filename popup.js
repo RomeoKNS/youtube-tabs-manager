@@ -74,7 +74,7 @@ function renderTabs() {
             ${tab.duration ? `<span class="tab-stat">${formatDuration(tab.duration)}</span>` : ''}
             ${tab.views ? `<span class="tab-stat">${tab.views}</span>` : ''}
           </div>
-          ${tab.openedAt ? `<span class="tab-since">Žiūrima nuo ${formatTime(tab.openedAt)}</span>` : ''}
+          ${tab.openedAt ? `<span class="tab-since">Atidaryta prieš ${formatTime(tab.openedAt)}</span>` : ''}
         </div>
       </div>
       <button class="tab-close" title="Uždaryti">✕</button>

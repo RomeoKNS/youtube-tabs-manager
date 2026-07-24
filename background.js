@@ -1,8 +1,8 @@
 const YOUTUBE_PATTERN = /^https?:\/\/(www\.)?youtube\.com\/watch/;
 const CHECK_INTERVAL = 3000;
 
-chrome.runtime.onInstalled.addListener(() => { scanExistingTabs(); updateBadge(); });
-chrome.runtime.onStartup.addListener(() => { scanExistingTabs(); updateBadge(); });
+chrome.runtime.onInstalled.addListener(() => { scanExistingTabs(true); updateBadge(); });
+chrome.runtime.onStartup.addListener(() => { scanExistingTabs(false); updateBadge(); });
 chrome.tabs.onCreated.addListener((tab) => { handleNewTab(tab); updateBadge(); });
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => { handleTabUpdate(tabId, changeInfo, tab); });
 chrome.tabs.onRemoved.addListener((tabId) => { handleTabRemoved(tabId); updateBadge(); });
@@ -97,8 +97,12 @@ async function handleMessage(msg, sender) {
     }
 
     for (const tab of aliveTabs) {
-      if (!tabs[tab.id]) {
+      if (!tabs[tab.id] || !tabs[tab.id].channel) {
         await addTab(tab);
+        const fresh = await chrome.storage.local.get('tabs');
+        if (fresh.tabs && fresh.tabs[tab.id]) {
+          tabs[tab.id] = fresh.tabs[tab.id];
+        }
       } else {
         try {
           const results = await chrome.scripting.executeScript({
@@ -224,6 +228,7 @@ async function addTab(tab, retroactive = false) {
       title: tab.title || 'YouTube',
       url: tab.url,
       favicon: tab.favIconUrl || '',
+      thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
       openedAt: retroactive ? null : Date.now(),
       lastUpdated: Date.now(),
       progress: 0
@@ -238,6 +243,7 @@ async function addTab(tab, retroactive = false) {
       title: tab.title || 'YouTube',
       url: tab.url,
       favicon: tab.favIconUrl || '',
+      thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
       openedAt: Date.now(),
       lastUpdated: Date.now(),
       progress: 0
@@ -315,11 +321,11 @@ function extractVideoId(url) {
   } catch { return null; }
 }
 
-async function scanExistingTabs() {
+async function scanExistingTabs(retroactive = true) {
   const existingTabs = await chrome.tabs.query({
     url: ['https://www.youtube.com/*', 'https://youtube.com/*']
   });
   for (const tab of existingTabs) {
-    await addTab(tab, true);
+    await addTab(tab, retroactive);
   }
 }

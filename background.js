@@ -66,6 +66,7 @@ async function handleMessage(msg, sender) {
       ...msg.payload,
       tabId,
       url: sender.tab.url,
+      discarded: false,
       lastUpdated: Date.now()
     };
 

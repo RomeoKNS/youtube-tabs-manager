@@ -322,9 +322,18 @@ async function addTab(tab, retroactive = false) {
     });
 
     if (results && results[0] && results[0].result) {
+      const scraped = results[0].result;
+      const existing = tabs[tab.id] || {};
+      const merged = { ...existing };
+      for (const [k, v] of Object.entries(scraped)) {
+        if (v === '' || v === null || v === undefined) continue;
+        if (k === 'duration' && (!v || v <= 0) && existing.duration > 0) continue;
+        if (k === 'currentTime' && (!v || v <= 0) && existing.currentTime > 0) continue;
+        if (k === 'progress' && v === 0 && existing.currentTime > 0) continue;
+        merged[k] = v;
+      }
       tabs[tab.id] = {
-        ...tabs[tab.id],
-        ...results[0].result,
+        ...merged,
         lastUpdated: Date.now()
       };
       await chrome.storage.local.set({ tabs });
@@ -344,7 +353,10 @@ async function scanExistingTabs(retroactive = true) {
   const storedTabs = data.tabs || {};
 
   for (const id of Object.keys(storedTabs)) {
-    if (storedTabs[id]) storedTabs[id].isPlaying = false;
+    if (storedTabs[id]) {
+      storedTabs[id].isPlaying = false;
+      storedTabs[id].discarded = true;
+    }
   }
 
   const existingTabs = await chrome.tabs.query({
@@ -374,7 +386,7 @@ async function scanExistingTabs(retroactive = true) {
         url: tab.url,
         favicon: tab.favIconUrl || videoIdMap[videoId].favicon || '',
         isPlaying: false,
-        discarded: !!tab.discarded,
+        discarded: true,
         lastUpdated: Date.now()
       };
       await chrome.storage.local.set({ tabs: storedTabs });

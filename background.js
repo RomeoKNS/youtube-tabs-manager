@@ -97,6 +97,7 @@ async function handleMessage(msg, sender) {
     }
 
     for (const tab of aliveTabs) {
+      if (tabs[tab.id]) tabs[tab.id].discarded = !!tab.discarded;
       if (tab.discarded) continue;
       if (!tabs[tab.id] || !tabs[tab.id].channel) {
         await addTab(tab);

@@ -72,7 +72,7 @@ function renderTabs() {
   container.innerHTML = sorted.map(tab => {
     const isPinned = pinned.has(tab.tabId);
     return `
-    <div class="tab-card${tab.isPlaying ? ' playing' : ''}${isPinned ? ' pinned' : ''}${tab.discarded ? ' discarded' : ''}" data-tab-id="${tab.tabId}">
+    <div class="tab-card${tab.isPlaying ? ' playing' : ''}${isPinned ? ' pinned' : ''}" data-tab-id="${tab.tabId}">
       <div class="thumbnail-wrap">
         <img src="${tab.thumbnail || ''}" alt="">
         <div class="progress-bar-wrap">

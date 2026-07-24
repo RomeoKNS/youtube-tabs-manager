@@ -177,15 +177,6 @@ h1 {
   border-left: 3px solid #ff0000;
 }
 
-.tab-card.discarded {
-  opacity: 0.5;
-  border-left: none;
-}
-
-.tab-card.discarded .thumbnail-wrap img {
-  filter: grayscale(100%);
-}
-
 .thumbnail-wrap {
   position: relative;
   flex-shrink: 0;

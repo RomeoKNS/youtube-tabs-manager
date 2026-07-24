@@ -49,6 +49,12 @@ h1 {
 
 .yt-logo {
   flex-shrink: 0;
+  width: 28px;
+  height: 20px;
+}
+
+.yt-tabs-text {
+  color: #ff0000;
 }
 
 .badge {

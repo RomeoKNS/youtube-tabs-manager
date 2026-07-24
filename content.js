@@ -55,7 +55,7 @@
         duration,
         currentTime,
         progress: duration > 0 ? Math.round((currentTime / duration) * 100) : 0,
-        isPlaying: !video.paused
+        isPlaying: !video.paused && document.visibilityState === 'visible'
       };
     } catch {
       return null;

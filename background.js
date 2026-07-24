@@ -61,9 +61,14 @@ async function handleMessage(msg, sender) {
     const tabs = data.tabs || {};
 
     const existing = tabs[tabId] || {};
+    const merged = { ...existing };
+    for (const [k, v] of Object.entries(msg.payload)) {
+      if (v === '' || v === null || v === undefined) continue;
+      if (k === 'progress' && v === 0 && existing.currentTime > 0) continue;
+      merged[k] = v;
+    }
     tabs[tabId] = {
-      ...existing,
-      ...msg.payload,
+      ...merged,
       tabId,
       url: sender.tab.url,
       discarded: false,
@@ -123,7 +128,7 @@ async function handleMessage(msg, sender) {
                 duration,
                 currentTime,
                 progress: duration > 0 ? Math.round((currentTime / duration) * 100) : 0,
-                isPlaying: !video.paused
+                isPlaying: !video.paused && document.visibilityState === 'visible'
               };
             }
           });
